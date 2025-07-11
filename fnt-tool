@@ -1,0 +1,107 @@
+// fntTool.js
+
+define(function () {
+    let canvas, ctx;
+    let image = null;
+    let charList = [];
+
+    function init() {
+        canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        ctx = canvas.getContext('2d');
+
+        document.querySelector('.preview-palette').appendChild(canvas);
+
+        bindEvents();
+    }
+
+    function bindEvents() {
+        document.getElementById('upload').addEventListener('change', handleFileUpload);
+        document.getElementById('setting-preview').addEventListener('click', renderPreview);
+        document.getElementById('setting-save').addEventListener('click', saveSettings);
+        document.getElementById('tool-download').addEventListener('click', exportFNT);
+    }
+
+    function handleFileUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            const img = new Image();
+            img.onload = function () {
+                image = img;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function renderPreview() {
+        const chars = document.getElementById('setting-preChars').value;
+        const size = parseInt(document.getElementById('setting-preSize').value, 10) || 32;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = `${size}px Arial`;
+        ctx.fillStyle = '#000';
+
+        let x = 10, y = size;
+        for (let i = 0; i < chars.length; i++) {
+            ctx.fillText(chars[i], x, y);
+            x += size;
+            if (x > canvas.width - size) {
+                x = 10;
+                y += size;
+            }
+        }
+    }
+
+    function saveSettings() {
+        // stub: save values to memory for export
+        charList = document.getElementById('setting-chars').value.split('');
+        alert('Settings saved.');
+    }
+
+    function exportFNT() {
+        // create FNT content
+        const name = document.getElementById('setting-name').value || 'output';
+        const lineHeight = parseInt(document.getElementById('setting-line-height').value, 10) || 32;
+        const padding = parseInt(document.getElementById('setting-padding').value, 10) || 0;
+
+        let fntText = `info face="Arial" size=${lineHeight} bold=0 italic=0 charset="" unicode=0 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1\n`;
+        fntText += `common lineHeight=${lineHeight} base=26 scaleW=${canvas.width} scaleH=${canvas.height} pages=1 packed=0\n`;
+        fntText += `page id=0 file="${name}.png"\n`;
+        fntText += `chars count=${charList.length}\n`;
+
+        let x = 0, y = 0;
+        for (let i = 0; i < charList.length; i++) {
+            const charCode = charList[i].charCodeAt(0);
+            fntText += `char id=${charCode} x=${x} y=${y} width=${lineHeight} height=${lineHeight} xoffset=0 yoffset=0 xadvance=${lineHeight} page=0 chnl=0\n`;
+            x += lineHeight;
+            if (x > canvas.width - lineHeight) {
+                x = 0;
+                y += lineHeight;
+            }
+        }
+
+        const link = document.createElement('a');
+        const blob = new Blob([fntText], { type: 'text/plain;charset=utf-8' });
+        link.href = URL.createObjectURL(blob);
+        link.download = `${name}.fnt`;
+        link.click();
+
+        // export PNG
+        canvas.toBlob(function (blob) {
+            const pngLink = document.createElement('a');
+            pngLink.href = URL.createObjectURL(blob);
+            pngLink.download = `${name}.png`;
+            pngLink.click();
+        });
+    }
+
+    return { init };
+});
+
